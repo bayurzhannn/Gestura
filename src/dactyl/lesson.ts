@@ -1,5 +1,6 @@
 // Lesson logic for the Russian fingerspelling trainer, ported from admit/app.js.
 import type { Classification, DactylModel } from './model';
+import type { ConfidenceId, FeedbackId } from '../i18n';
 
 export interface Point { x: number; y: number; z?: number }
 
@@ -7,47 +8,8 @@ export const alphabet = [...'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧ�
 const images = 'a b v g d e e zh z i j k l m n o p r s t u f h ts ch sh shch tvjordyj-znak y myagkij-znak ee yu ya'.split(' ');
 export const referenceImage = (letter: string) => `/references/alphabet/${images[alphabet.indexOf(letter)]}.png`;
 
-export const hints: Record<string, string> = {
-  'А': 'Сожми пальцы в кулак. Большой палец прижми сбоку к указательному, как на образце.',
-  'Б': 'Выпрями указательный палец. Средний держи рядом, согнув его верхнюю фалангу; безымянный и мизинец прижми к ладони.',
-  'В': 'Раскрой ладонь и выпрями четыре пальца, держи их вместе.',
-  'Г': 'Выпрями указательный палец, остальные три прижми к ладони. Большой палец отведи в сторону, кисть направь пальцами вниз.',
-  'Д': 'Выпрями и соедини указательный со средним, остальные пальцы согни. Когда форма найдена, нарисуй двумя пальцами небольшой круг в воздухе.',
-  'Е': 'Согни пальцы в пучок, чтобы их кончики встретились с большим пальцем.',
-  'Ё': 'Сложи пальцы как для Е. Когда форма найдена, поверни кисть влево и вправо.',
-  'Ж': 'Согни четыре пальца у основания примерно под прямым углом и положи их на большой палец.',
-  'З': 'Выпрями указательный палец, остальные согни. Полный жест рисует указательным букву З в воздухе; пока проверяется только форма руки.',
-  'И': 'Выпрями безымянный палец и мизинец вверх, слегка разведи их. Указательный и средний прижми к ладони большим пальцем.',
-  'Й': 'Покажи форму И: безымянный палец и мизинец вверх, указательный и средний согнуты. Затем поверни кисть дугой в сторону.',
-  'К': 'Выпрями указательный и средний пальцы, слегка разведи их. Безымянный и мизинец согни к ладони. Когда форма найдена, коротко опусти кисть вниз.',
-  'Л': 'Выпрями и разведи указательный и средний пальцы. Остальные прижми к ладони, кисть направь пальцами вниз.',
-  'М': 'Направь кисть пальцами вниз. Выпрями указательный, средний и безымянный, а мизинец соедини с большим пальцем.',
-  'Н': 'Выпрями указательный, средний и мизинец. Безымянный соедини с большим пальцем.',
-  'О': 'Соедини указательный и большой пальцы в кольцо. Средний, безымянный и мизинец выпрями.',
-  'П': 'Выпрями и соедини указательный со средним, остальные согни. Кисть направь пальцами вниз.',
-  'Р': 'Соедини средний и большой пальцы в кольцо. Указательный, безымянный и мизинец выпрями.',
-  'С': 'Слегка согни все пальцы, чтобы кисть напоминала букву С.',
-  'Т': 'Направь кисть пальцами вниз. Указательный, средний и безымянный выпрями и соедини; мизинец согни.',
-  'У': 'Выпрями мизинец и отведи большой палец в сторону. Остальные пальцы согни.',
-  'Ф': 'Согни четыре пальца у основания примерно под прямым углом; большой палец прижми сбоку, как на образце.',
-  'Х': 'Согни указательный палец крючком. Остальные пальцы прижми к ладони.',
-  'Ц': 'Выпрями и соедини указательный со средним, остальные согни. Полный жест включает короткое движение кисти вниз; пока проверяется только форма руки.',
-  'Ч': 'Согни указательный и средний у основания и положи их на большой палец. Безымянный и мизинец прижми к ладони.',
-  'Ш': 'Выпрями указательный, средний и безымянный. Мизинец соедини с большим пальцем.',
-  'Щ': 'Покажи форму Ш. Когда форма найдена, коротко опусти всю кисть вниз.',
-  'Ъ': 'Выпрями указательный палец и отведи большой в сторону, остальные согни. Затем слегка наклони кисть так, чтобы указательный палец ушёл к тебе, от камеры.',
-  'Ы': 'Выпрями указательный палец и мизинец. Средний и безымянный прижми к ладони большим пальцем.',
-  'Ь': 'Выпрями указательный палец и отведи большой в сторону, остальные согни. Затем слегка наклони кисть так, чтобы указательный палец ушёл от тебя, к камере.',
-  'Э': 'Согни указательный и большой пальцы навстречу друг другу, образуя полукольцо. Остальные прижми к ладони.',
-  'Ю': 'Подними мизинец, остальные пальцы собери к большому, как на образце.',
-  'Я': 'Положи средний палец на указательный. Безымянный и мизинец прижми к ладони.',
-};
 
 export const motionLetters = new Set(['Д', 'Ё', 'Й', 'К', 'Щ', 'Ъ', 'Ь']);
-export const movementLabels: Record<string, string> = {
-  'Д': 'Круг двумя пальцами', 'Ё': 'Поворот туда и обратно', 'Й': 'Поворот кисти', 'К': 'Кисть вниз',
-  'Щ': 'Кисть вниз', 'Ъ': 'Наклон к себе', 'Ь': 'Наклон от себя',
-};
 export const movementSymbols: Record<string, string> = {
   'Д': '◌', 'Ё': '↔', 'Й': '↶', 'К': '↓', 'Щ': '↓', 'Ъ': '•', 'Ь': '•',
 };
@@ -170,12 +132,14 @@ function drewCircle(history: MotionSample[]) {
 
 // ---------- Lesson engine ----------
 
-export interface Feedback { title: string; text: string; icon: string }
+// Messages are ids rendered by the UI in the selected language (see i18n.ts).
+export interface Feedback { id: FeedbackId; icon: string; letter?: string; detail?: string }
+export interface Confidence { id: ConfidenceId; letter?: string; percent?: number }
 
 export interface Verdict {
   prediction: string;
   meter: number; // 0..100
-  confidence: string;
+  confidence: Confidence;
   feedback: Feedback;
   completed: boolean;
 }
@@ -254,8 +218,8 @@ export class LessonEngine {
 
   evaluate(model: DactylModel, target: string, result: Classification, fromCamera: boolean,
            landmarks: Point[] | null = null, aspectRatio = 1): Verdict {
-    const hint = hints[target];
     const { detectors } = model;
+    const say = (id: FeedbackId, icon: string): Feedback => ({ id, icon, letter: target });
     const angles = measuredFingerAngles(landmarks, aspectRatio);
     const invariantA = target === 'А' && result.aScore !== null &&
       result.aScore >= detectors['А'].threshold && (!angles || angles.every((angle) => angle <= 145));
@@ -270,15 +234,14 @@ export class LessonEngine {
       target === 'К' ? invariantK ? 'К' : '—' : target === 'Д' ? invariantD || dBaseShape ? 'Д' : '—' : result.letter;
     let meter = invariantA || invariantI || invariantK || invariantD ? 100 :
       dBaseShape ? percent : isI || target === 'К' || target === 'Д' ? 0 : percent;
-    let confidence = invariantA ? 'Форма А прошла дополнительную проверку' :
-      invariantI ? 'Форма И прошла дополнительную проверку' :
-      invariantK ? 'Форма К прошла дополнительную проверку' :
-      invariantD ? 'Форма Д прошла дополнительную проверку' :
-      dBaseShape ? 'Форма Д найдена · для зачёта нужен круг' :
-      isI ? 'Форма И пока не подтверждена' :
-      target === 'К' ? 'Форма К пока не подтверждена' :
-      target === 'Д' ? 'Форма Д пока не подтверждена' :
-      `Оценка модели: ${percent}% · возможна ошибка`;
+    let confidence: Confidence = invariantA ? { id: 'extraCheck', letter: 'А' } :
+      invariantI ? { id: 'extraCheck', letter: 'И' } :
+      invariantK ? { id: 'extraCheck', letter: 'К' } :
+      invariantD ? { id: 'extraCheck', letter: 'Д' } :
+      dBaseShape ? { id: 'dNeedsCircle' } :
+      isI ? { id: 'notConfirmedYet', letter: 'И' } :
+      target === 'К' || target === 'Д' ? { id: 'notConfirmedYet', letter: target } :
+      { id: 'modelScore', percent };
     const verdict = (feedback: Feedback, completed = false): Verdict =>
       ({ prediction, meter, confidence, feedback, completed });
 
@@ -294,42 +257,40 @@ export class LessonEngine {
       this.steadyFrames = 0;
       if (invariantSh) {
         prediction = 'Ш/Щ';
-        confidence = 'Форма Ш прошла дополнительную проверку';
+        confidence = { id: 'shExtraCheck' };
         meter = 100;
       }
       if (!fromCamera || !landmarks) {
         this.resetMotion();
-        return verdict(shapeSeen
-          ? { title: 'Форма руки подходит', text: `Для буквы ${target} нужно движение. Включи камеру: ${hint}`, icon: '↔' }
-          : { title: 'Форма пока не подтверждена', text: hint, icon: '↔' });
+        return verdict(say(shapeSeen ? 'shapeOkNeedMotion' : 'shapeNotConfirmed', '↔'));
       }
       if (!this.motionArmedAt) {
         this.motionShapeFrames = shapeSeen ? Math.min(this.motionShapeFrames + 1, 3) : Math.max(0, this.motionShapeFrames - 1);
-        if (this.motionShapeFrames < 2) return verdict({ title: 'Сначала покажи форму руки', text: hint, icon: '↻' });
+        if (this.motionShapeFrames < 2) return verdict(say('showShapeFirst', '↻'));
         this.motionArmedAt = Date.now();
         this.motionHistory = [];
         this.recordMotion(landmarks, aspectRatio);
-        return verdict({ title: 'Форма найдена — добавь движение', text: hint, icon: '↔' });
+        return verdict(say('shapeFoundAddMotion', '↔'));
       }
       if (Date.now() - this.motionArmedAt > 5000) {
         this.resetMotion();
-        return verdict({ title: 'Покажи форму ещё раз', text: 'После подтверждения формы сразу выполни движение.', icon: '↻' });
+        return verdict(say('showShapeAgain', '↻'));
       }
       this.recordMotion(landmarks, aspectRatio);
       prediction = target;
-      confidence = 'Форма найдена · проверяю движение';
+      confidence = { id: 'checkingMotion' };
       meter = 60;
       this.motionReadyFrames = this.movementDetected(target) ? this.motionReadyFrames + 1 : 0;
       if (this.motionReadyFrames >= 2 && Date.now() - this.lastAdvance > 700) {
         this.complete();
-        return verdict({ title: `Вижу букву ${target}`, text: 'Форма и движение совпали.', icon: '✓' }, true);
+        return verdict(say('seeLetterMotion', '✓'), true);
       }
-      return verdict({ title: this.motionReadyFrames ? 'Движение замечено' : 'Форма найдена — добавь движение', text: hint, icon: '↔' });
+      return verdict(say(this.motionReadyFrames ? 'motionNoticed' : 'shapeFoundAddMotion', '↔'));
     }
 
     if (clearShape) {
       this.steadyFrames++;
-      const feedback = { title: `Вижу букву ${target}`, text: fromCamera ? 'Удерживай жест ещё немного.' : 'Образец распознан.', icon: '✓' };
+      const feedback = say(fromCamera ? 'seeLetterHold' : 'seeLetterSample', '✓');
       if (!fromCamera || (this.steadyFrames >= 5 && Date.now() - this.lastAdvance > 1000)) {
         this.complete();
         return verdict(feedback, true);
@@ -337,6 +298,6 @@ export class LessonEngine {
       return verdict(feedback);
     }
     this.steadyFrames = 0;
-    return verdict({ title: `Пока не подтверждаю букву ${target}`, text: hint, icon: '↻' });
+    return verdict(say('notConfirmed', '↻'));
   }
 }

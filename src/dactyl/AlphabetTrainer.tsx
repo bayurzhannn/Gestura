@@ -1,15 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getHandLandmarker } from '../landmarker';
+import { hints, movementLabels, showLetterTitle, trainerText, useSettings, type FeedbackId } from '../i18n';
+import { speak } from '../speech';
 import { classify, loadDactylModel, loadExamples, type DactylModel } from './model';
 import {
-  alphabet, drawSkeleton, hints, landmarkFeatures, LessonEngine, motionLetters, movementLabels,
-  movementSymbols, referenceImage, type Feedback, type Point,
+  alphabet, drawSkeleton, landmarkFeatures, LessonEngine, motionLetters, movementSymbols, referenceImage,
+  type Confidence, type Feedback, type Point,
 } from './lesson';
 
 const TOTAL = alphabet.length;
 
-interface Analysis { prediction: string; meter: number; confidence: string }
-const idleAnalysis: Analysis = { prediction: '—', meter: 0, confidence: 'Наведите руку на камеру' };
+interface Analysis { prediction: string; meter: number; confidence: Confidence }
+const idleAnalysis: Analysis = { prediction: '—', meter: 0, confidence: { id: 'pointCamera' } };
+
+const note = (id: FeedbackId, icon = '✳', extra: Partial<Feedback> = {}): Feedback => ({ id, icon, ...extra });
 
 function nextUncompleted(completed: Set<string>, afterIndex: number) {
   for (let step = 0; step < TOTAL; step++) {
@@ -20,10 +24,15 @@ function nextUncompleted(completed: Set<string>, afterIndex: number) {
 }
 
 export default function AlphabetTrainer() {
+  const settings = useSettings();
+  const { lang } = settings;
+  const tt = trainerText[lang];
+  const label = tt.labels;
+
   const [lessonIndex, setLessonIndex] = useState(0);
   const [completed, setCompleted] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState(0);
-  const [feedback, setFeedback] = useState<Feedback>({ title: 'Готовимся к уроку', text: 'Загрузка модели…', icon: '✳' });
+  const [feedback, setFeedback] = useState<Feedback>(note('loading'));
   const [analysis, setAnalysis] = useState<Analysis>(idleAnalysis);
   const [cameraOn, setCameraOn] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -38,10 +47,17 @@ export default function AlphabetTrainer() {
   const completedRef = useRef(completed);
   const streamRef = useRef<MediaStream | null>(null);
   const checkingRef = useRef(false);
+  // The camera loop outlives renders, so it reads the latest settings from a ref.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   const finished = lessonIndex >= TOTAL;
   const target = finished ? null : alphabet[lessonIndex];
   const selectedLetter = alphabet[selected];
+
+  const say = (text: string) => {
+    if (settingsRef.current.voice) speak(text, settingsRef.current.lang);
+  };
 
   const goTo = (index: number) => {
     lessonRef.current = index;
@@ -69,7 +85,13 @@ export default function AlphabetTrainer() {
       setCompleted(done);
       const next = nextUncompleted(done, index + 1);
       goTo(next);
-      if (next >= TOTAL) setFeedback({ title: 'Весь алфавит пройден', text: 'Можешь выбрать любую букву или пройти урок снова.', icon: '✓' });
+      const speech = trainerText[settingsRef.current.lang].speech;
+      if (next >= TOTAL) {
+        setFeedback(note('allDone', '✓'));
+        say(`${speech.correct(letter)} ${speech.done}`);
+      } else {
+        say(`${speech.correct(letter)} ${speech.next(alphabet[next])}`);
+      }
     }
   };
 
@@ -77,8 +99,8 @@ export default function AlphabetTrainer() {
     drawFeatures(null);
     loadDactylModel().then((model) => {
       modelRef.current = model;
-      setFeedback({ title: 'Модель готова', text: 'Включи камеру, загрузи фото или проверь образец.', icon: '✳' });
-    }).catch((error) => setFeedback({ title: 'Не удалось загрузить модель', text: error.message, icon: '!' }));
+      setFeedback(note('modelReady'));
+    }).catch((error) => setFeedback(note('modelError', '!', { detail: error.message })));
     return () => streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
@@ -99,7 +121,7 @@ export default function AlphabetTrainer() {
           setHandVisible(false);
           setAnalysis(idleAnalysis);
           engineRef.current.reset();
-          setFeedback({ title: 'Покажи руку в кадре', text: 'Подними кисть так, чтобы были видны все пальцы.', icon: '↻' });
+          setFeedback(note('showHand', '↻'));
           return;
         }
         setHandVisible(true);
@@ -108,7 +130,7 @@ export default function AlphabetTrainer() {
         drawFeatures(features);
         if (features) check(features, true, landmarks, aspectRatio);
       } catch (error: any) {
-        setFeedback({ title: 'Ошибка распознавания', text: error.message, icon: '!' });
+        setFeedback(note('recognitionError', '!', { detail: error.message }));
       } finally {
         busy = false;
       }
@@ -118,7 +140,7 @@ export default function AlphabetTrainer() {
 
   const startCamera = async () => {
     setStarting(true);
-    setFeedback({ title: 'Запускаем камеру', text: 'Разреши доступ в окне браузера.', icon: '✳' });
+    setFeedback(note('startingCamera'));
     try {
       await Promise.all([loadDactylModel(), getHandLandmarker('VIDEO', 1)]);
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
@@ -128,9 +150,11 @@ export default function AlphabetTrainer() {
         await videoRef.current.play();
       }
       setCameraOn(true);
-      setFeedback({ title: `Покажи букву ${alphabet[lessonRef.current] ?? 'А'}`, text: 'Расположи одну руку полностью в кадре.', icon: '✳' });
+      const letter = alphabet[lessonRef.current] ?? 'А';
+      setFeedback(note('showLetter', '✳', { letter }));
+      say(showLetterTitle(settingsRef.current.lang, letter));
     } catch (error: any) {
-      setFeedback({ title: 'Не удалось включить камеру', text: error.message, icon: '!' });
+      setFeedback(note('cameraError', '!', { detail: error.message }));
     } finally {
       setStarting(false);
     }
@@ -152,7 +176,7 @@ export default function AlphabetTrainer() {
     const input = event.target;
     const file = input.files?.[0];
     if (!file) return;
-    setFeedback({ title: 'Проверяем фото', text: 'Ищем кисть руки на изображении…', icon: '✳' });
+    setFeedback(note('checkingPhoto'));
     withChecking(async () => {
       let image: ImageBitmap | undefined;
       try {
@@ -163,15 +187,15 @@ export default function AlphabetTrainer() {
         const features = landmarks ? landmarkFeatures(landmarks, aspectRatio) : null;
         drawFeatures(features);
         if (!landmarks) {
-          setAnalysis({ ...idleAnalysis, confidence: 'Рука не найдена' });
-          setFeedback({ title: 'Не вижу руку на фото', text: 'Загрузи чёткое фото одной руки целиком.', icon: '↻' });
+          setAnalysis({ ...idleAnalysis, confidence: { id: 'noHand' } });
+          setFeedback(note('noHandPhoto', '↻'));
         } else if (!features) {
-          setFeedback({ title: 'Не удалось выделить руку', text: 'Попробуй другое фото с чётко видимыми пальцами.', icon: '↻' });
+          setFeedback(note('cantExtract', '↻'));
         } else {
           check(features, false, landmarks, aspectRatio);
         }
       } catch (error: any) {
-        setFeedback({ title: 'Не удалось проверить изображение', text: error.message, icon: '!' });
+        setFeedback(note('photoError', '!', { detail: error.message }));
       } finally {
         image?.close();
         input.value = '';
@@ -183,17 +207,18 @@ export default function AlphabetTrainer() {
     try {
       const letter = alphabet[lessonRef.current];
       const features = (await loadExamples())[letter];
-      if (!features) throw new Error(`Нет образца для буквы ${letter}`);
+      if (!features) throw new Error(letter);
       drawFeatures(features);
       check(features, false);
     } catch (error: any) {
-      setFeedback({ title: 'Не удалось проверить образец', text: error.message, icon: '!' });
+      setFeedback(note('sampleError', '!', { detail: error.message }));
     }
   });
 
   const practice = (letter: string) => {
     goTo(alphabet.indexOf(letter));
-    setFeedback({ title: `Покажи букву ${letter}`, text: hints[letter], icon: '✳' });
+    setFeedback(note('practice', '✳', { letter }));
+    say(showLetterTitle(lang, letter));
     document.getElementById('dactyl-lesson')?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -201,104 +226,114 @@ export default function AlphabetTrainer() {
     completedRef.current = new Set<string>();
     setCompleted(completedRef.current);
     goTo(0);
-    setFeedback({ title: 'Начинаем снова', text: 'Покажи букву А.', icon: '✳' });
+    setFeedback(note('restart'));
   };
+
+  const feedbackLetter = feedback.letter ?? target ?? '';
+  const [titleOf, textOf] = tt.feedback[feedback.id];
+  const feedbackHint = hints[lang][feedbackLetter] ?? '';
+  const feedbackTitle = titleOf(feedbackLetter, feedbackHint, feedback.detail ?? '');
+  const feedbackText = textOf(feedbackLetter, feedbackHint, feedback.detail ?? '');
+  const confidenceText = tt.confidence[analysis.confidence.id](analysis.confidence.letter ?? '', analysis.confidence.percent ?? 0);
 
   const cardTitle = 'text-xs uppercase text-text-dim font-bold tracking-wider';
   const outlineButton = 'border border-border-soft text-text-main font-medium px-4 py-2.5 rounded-lg text-sm hover:border-accent-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  const listenButton = 'text-xs font-semibold text-accent-primary hover:underline disabled:opacity-40 disabled:no-underline';
 
   return (
     <div className="flex flex-col gap-6">
       <section id="dactyl-lesson" className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-6 scroll-mt-6">
         <div className="soft-card p-5 flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <h3 className={cardTitle}>Твоё задание</h3>
+            <h3 className={cardTitle}>{label.task}</h3>
             <span className="text-xs font-semibold bg-bg-main border border-border-soft rounded-full px-2.5 py-0.5">
               {finished ? TOTAL : lessonIndex + 1} / {TOTAL}
             </span>
           </div>
           <div className="text-6xl font-bold text-accent-primary leading-none">{target ?? '✓'}</div>
-          <p className="font-semibold mt-2 mb-4">{target ? `Покажи букву ${target}` : 'Урок завершён'}</p>
+          <p className="font-semibold mt-2 mb-4">{target ? showLetterTitle(lang, target) : label.lessonDone}</p>
           {target && (
             <div className="bg-bg-main border border-border-soft rounded-xl p-3 flex items-center justify-center mb-4 overflow-hidden">
-              <img src={referenceImage(target)} alt={`Образец жеста ${target}`}
+              <img src={referenceImage(target)} alt={`${label.sampleAlt} ${target}`}
                 className={`max-h-40 object-contain ${target === 'А' ? 'upright-a' : ''}`} />
             </div>
           )}
-          <p className="text-sm text-text-dim leading-relaxed">
-            {target ? hints[target] : 'Ты прошёл весь алфавит. Можно выбрать букву в справочнике и повторить её.'}
-          </p>
+          <p className="text-sm text-text-dim leading-relaxed">{target ? hints[lang][target] : label.doneHint}</p>
+          {target && (
+            <button type="button" className={`${listenButton} self-start mt-3`}
+              onClick={() => speak(`${showLetterTitle(lang, target)}. ${hints[lang][target]}`, lang)}>
+              🔊 {label.listen}
+            </button>
+          )}
         </div>
 
         <div className="soft-card p-5 flex flex-col gap-4">
           <div className="flex justify-between items-center">
-            <h3 className={cardTitle}>Практика с камерой</h3>
+            <h3 className={cardTitle}>{label.practiceCamera}</h3>
             <span className="text-xs font-medium text-text-dim flex items-center gap-2">
-              <span className={cameraOn ? 'status-dot' : 'status-dot status-dot-off'}></span>{cameraOn ? 'Включена' : 'Выключена'}
+              <span className={cameraOn ? 'status-dot' : 'status-dot status-dot-off'}></span>{cameraOn ? label.on : label.off}
             </span>
           </div>
           <div className="relative bg-gray-900 rounded-xl overflow-hidden aspect-[4/3]">
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" playsInline autoPlay muted />
             {!cameraOn && (
-              <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm font-medium">
-                Включи камеру, чтобы начать практику
+              <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm font-medium px-6 text-center">
+                {label.turnOnCamera}
               </div>
             )}
             {cameraOn && (
               <div className="absolute top-3 left-3 bg-bg-panel/90 backdrop-blur-md text-xs font-semibold px-3 py-1.5 rounded-full">
-                {handVisible === null ? 'Ожидание руки' : handVisible ? 'Рука найдена' : 'Рука не найдена'}
+                {handVisible === null ? label.waitingHand : handVisible ? label.handFound : label.handLost}
               </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={startCamera} disabled={cameraOn || starting}
               className="bg-accent-primary text-white font-medium px-4 py-2.5 rounded-lg text-sm hover:opacity-90 transition-opacity shadow-sm disabled:opacity-60 disabled:cursor-not-allowed">
-              {cameraOn ? 'Камера включена' : starting ? 'Запуск…' : 'Включить камеру'}
+              {cameraOn ? label.cameraIsOn : starting ? label.starting : label.startCamera}
             </button>
             <label className={`${outlineButton} cursor-pointer ${checking ? 'opacity-50 pointer-events-none' : ''}`}>
-              Загрузить фото
+              {label.uploadPhoto}
               <input type="file" accept="image/*" className="hidden" onChange={checkPhoto} disabled={checking} />
             </label>
-            <button onClick={checkExample} disabled={checking || finished} className={outlineButton}>Проверить образец</button>
+            <button onClick={checkExample} disabled={checking || finished} className={outlineButton}>{label.checkSample}</button>
           </div>
           <div className="flex gap-3 items-start bg-bg-main border border-border-soft rounded-xl p-4" aria-live="polite">
             <div className="w-9 h-9 shrink-0 rounded-full bg-accent-secondary/40 flex items-center justify-center font-bold">{feedback.icon}</div>
             <div>
-              <strong className="text-sm">{feedback.title}</strong>
-              <p className="text-sm text-text-dim mt-1 leading-relaxed">{feedback.text}</p>
+              <strong className="text-sm">{feedbackTitle}</strong>
+              <p className="text-sm text-text-dim mt-1 leading-relaxed">{feedbackText}</p>
             </div>
           </div>
         </div>
 
         <div className="soft-card p-5 flex flex-col">
-          <h3 className={`${cardTitle} mb-4`}>Анализ жеста</h3>
+          <h3 className={`${cardTitle} mb-4`}>{label.analysis}</h3>
           <div className="bg-white border border-border-soft rounded-xl flex items-center justify-center p-2 mb-4">
-            <canvas ref={skeletonRef} width={192} height={192} className="w-full max-w-[192px]" aria-label="Контур обнаруженной руки" />
+            <canvas ref={skeletonRef} width={192} height={192} className="w-full max-w-[192px]" aria-label={label.skeletonAlt} />
           </div>
           <div className="flex justify-between items-baseline mb-2">
-            <span className="text-sm text-text-dim">Распознано</span>
+            <span className="text-sm text-text-dim">{label.recognized}</span>
             <strong className="text-2xl text-accent-primary">{analysis.prediction}</strong>
           </div>
           <div className="h-2 bg-bg-main border border-border-soft rounded-full overflow-hidden mb-2">
             <span className="block h-full bg-accent-primary transition-all" style={{ width: `${analysis.meter}%` }} />
           </div>
-          <p className="text-xs text-text-dim">{analysis.confidence}</p>
+          <p className="text-xs text-text-dim">{confidenceText}</p>
         </div>
       </section>
 
       <section className="soft-card p-5">
         <div className="flex justify-between items-center mb-2">
-          <h3 className={cardTitle}>Справочник жестов · весь алфавит</h3>
-          <span className="text-xs font-semibold text-text-dim">{TOTAL} буквы</span>
+          <h3 className={cardTitle}>{label.reference}</h3>
+          <span className="text-xs font-semibold text-text-dim">{TOTAL} {label.letters}</span>
         </div>
-        <p className="text-sm text-text-dim mb-4">
-          Выбери букву и нажми «Тренировать». Для Д, Ё, Й, К, Щ, Ъ и Ь нужна камера: одно фото не показывает движение.
-        </p>
+        <p className="text-sm text-text-dim mb-4">{label.intro}</p>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
           <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-11 gap-2 content-start">
             {alphabet.map((letter, index) => (
               <button key={letter} type="button" onClick={() => setSelected(index)} aria-pressed={selected === index}
-                aria-label={`Буква ${letter}`}
+                aria-label={`${label.letter} ${letter}`}
                 className={`relative aspect-square rounded-lg border text-lg font-bold transition-colors ${
                   selected === index ? 'border-accent-primary bg-accent-primary text-white'
                   : completed.has(letter) ? 'border-[#81C784] bg-[#81C784]/15 text-text-main'
@@ -312,26 +347,26 @@ export default function AlphabetTrainer() {
             <div className="flex justify-between items-center">
               <strong className="text-3xl">{selectedLetter}</strong>
               <span className="text-[11px] font-semibold bg-bg-panel border border-border-soft rounded-full px-2.5 py-0.5">
-                {motionLetters.has(selectedLetter) ? 'Нужна камера и движение' : 'Можно проверить камерой'}
+                {motionLetters.has(selectedLetter) ? label.needsMotion : label.cameraOk}
               </span>
             </div>
             <div className="flex items-center justify-center overflow-hidden">
-              <img src={referenceImage(selectedLetter)} alt={`Положение руки для буквы ${selectedLetter}`}
+              <img src={referenceImage(selectedLetter)} alt={`${label.sampleAlt} ${selectedLetter}`}
                 className={`max-h-40 object-contain ${selectedLetter === 'А' ? 'upright-a' : ''}`} />
             </div>
-            {movementLabels[selectedLetter] && (
+            {movementLabels[lang][selectedLetter] && (
               <div className="text-xs bg-accent-secondary/25 rounded-lg p-3">
-                <strong className="block mb-1">{movementLabels[selectedLetter]}</strong>
-                <span className="text-text-dim">{hints[selectedLetter]}</span>
+                <strong className="block mb-1">{movementLabels[lang][selectedLetter]}</strong>
+                <span className="text-text-dim">{hints[lang][selectedLetter]}</span>
               </div>
             )}
             <button type="button" onClick={() => practice(selectedLetter)}
               className="bg-accent-primary text-white font-medium p-2.5 rounded-lg text-sm hover:opacity-90 transition-opacity shadow-sm">
-              Тренировать букву {selectedLetter}
+              {label.practiceLetter} {selectedLetter}
             </button>
             <p className="text-[11px] text-text-dim">
-              Рисунки: <a className="underline" href="https://abvgdee.ru/alfavity/gluhonemyh" target="_blank" rel="noreferrer">abvgdee.ru</a> ·
-              модель: <a className="underline" href="https://github.com/Blockbattle/RSL-Dataset" target="_blank" rel="noreferrer">RSL-Dataset</a>
+              {label.images}: <a className="underline" href="https://abvgdee.ru/alfavity/gluhonemyh" target="_blank" rel="noreferrer">abvgdee.ru</a> ·{' '}
+              {label.model}: <a className="underline" href="https://github.com/Blockbattle/RSL-Dataset" target="_blank" rel="noreferrer">RSL-Dataset</a>
             </p>
           </div>
         </div>
@@ -339,13 +374,13 @@ export default function AlphabetTrainer() {
 
       <section className="soft-card p-5">
         <div className="flex justify-between items-center mb-3">
-          <h3 className={cardTitle}>Твой прогресс</h3>
-          <span className="text-sm font-semibold">{completed.size} из {TOTAL}</span>
+          <h3 className={cardTitle}>{label.progress}</h3>
+          <span className="text-sm font-semibold">{completed.size} {label.of} {TOTAL}</span>
         </div>
         <div className="h-3 bg-bg-main border border-border-soft rounded-full overflow-hidden">
           <span className="block h-full bg-[#81C784] transition-all" style={{ width: `${completed.size / TOTAL * 100}%` }} />
         </div>
-        {finished && <button type="button" onClick={restart} className={`${outlineButton} mt-4`}>Пройти снова</button>}
+        {finished && <button type="button" onClick={restart} className={`${outlineButton} mt-4`}>{label.again}</button>}
       </section>
     </div>
   );

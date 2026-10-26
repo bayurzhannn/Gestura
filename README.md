@@ -1,20 +1,21 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# EchoVision Web
 
-# Run and deploy your AI Studio app
+Жесты и дактиль с камерой в браузере. Интерфейс на казахском, русском и английском.
 
-This contains everything you need to run your app locally.
+## Режимы
 
-View your app in AI Studio: https://ai.studio/apps/3d562d1a-729c-41d2-8e5b-fd0256b63ed2
+**Переводчик жестов.** MediaPipe находит до двух рук. Жесты одной руки (Привет, Окей, Хорошо, Мир, Люблю и др.) и двух рук (Сердце, Семья, Стоп, Спасибо, Дом, Помощь, Супер, Вместе) складываются в очередь. Через 2 секунды без новых жестов очередь превращается в предложение на выбранном языке и озвучивается. С ключом Gemini предложение составляет ИИ; без ключа зачитываются сами слова.
 
-## Run Locally
+**Дактильный алфавит.** Тренажёр всех 33 букв русского дактиля из проекта [admit](https://github.com/bekaloklok/admit): модели на данных [RSL-Dataset](https://github.com/Blockbattle/RSL-Dataset), дополнительная проверка А, И/Й, К, Д, Ш/Щ и распознавание движения для Д, Ё, Й, К, Щ, Ъ, Ь. Проверка камерой, по фото или по образцу; зачтённые буквы и подсказки озвучиваются.
 
-**Prerequisites:**  Node.js
+Язык интерфейса и озвучку можно переключить в шапке. Если в системе нет казахского голоса, казахский текст читается русским голосом.
 
+## Запуск
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Нужен Node.js.
+
+1. `npm install`
+2. Для Gemini создайте `.env.local` с `GEMINI_API_KEY=...` (необязательно).
+3. `npm run dev` и откройте http://localhost:3000 в Chrome или Edge.
+
+Внимание: ключ Gemini встраивается в клиентский код, поэтому при публикации сайта его увидит любой посетитель.

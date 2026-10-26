@@ -63,6 +63,17 @@ body {
   box-shadow: 0 0 8px rgba(129, 199, 132, 0.6);
 }
 
+.status-dot-off {
+  background-color: var(--color-text-dim);
+  box-shadow: none;
+}
+
+/* The reference drawing for А is stored sideways. */
+.upright-a {
+  clip-path: inset(0 0 22%);
+  transform: rotate(90deg);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

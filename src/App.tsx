@@ -1,8 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import { HandLandmarker } from '@mediapipe/tasks-vision';
 import { GoogleGenAI } from '@google/genai';
+import { getHandLandmarker } from './landmarker';
+import AlphabetTrainer from './dactyl/AlphabetTrainer';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Created lazily so the app (and the alphabet trainer) still works without a Gemini key.
+let ai: GoogleGenAI | null = null;
+const getAi = () => {
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set (see .env.example).');
+  ai ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return ai;
+};
 
 const getDistance = (p1: any, p2: any) => {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
@@ -137,7 +145,44 @@ const drawLandmarks = (ctx: CanvasRenderingContext2D, landmarks: any[]) => {
   }
 };
 
+type Mode = 'gestures' | 'alphabet';
+
 export default function App() {
+  const [mode, setMode] = useState<Mode>('gestures');
+  const tab = (value: Mode, label: string) => (
+    <button
+      type="button"
+      onClick={() => setMode(value)}
+      aria-pressed={mode === value}
+      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+        mode === value ? 'bg-accent-primary text-white shadow-sm' : 'text-text-dim hover:text-text-main'}`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col p-4 md:p-6 gap-6 max-w-[1200px] mx-auto">
+      <header className="soft-card flex flex-wrap gap-4 justify-between items-center px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="brand-icon"></div>
+          <div className="font-bold tracking-tight text-xl text-text-main">EchoVision Web</div>
+        </div>
+        <nav className="flex gap-1 bg-bg-main border border-border-soft rounded-xl p-1" aria-label="Mode">
+          {tab('gestures', 'Gesture Translator')}
+          {tab('alphabet', 'Дактильный алфавит')}
+        </nav>
+        <div className="text-sm text-text-dim font-medium flex items-center gap-2">
+          <span className="status-dot"></span> Vision Engine Active
+        </div>
+      </header>
+      {/* Each mode owns its camera stream; switching unmounts the other one and releases it. */}
+      {mode === 'gestures' ? <GestureTranslator /> : <AlphabetTrainer />}
+    </div>
+  );
+}
+
+function GestureTranslator() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [language, setLanguage] = useState<string>('EN');
@@ -168,17 +213,7 @@ export default function App() {
   useEffect(() => {
     const initMediaPipe = async () => {
       try {
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
-        );
-        const landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
-            delegate: "GPU"
-          },
-          runningMode: "VIDEO",
-          numHands: 2
-        });
+        const landmarker = await getHandLandmarker('VIDEO', 2);
         handLandmarkerRef.current = landmarker;
         setIsModelLoaded(true);
       } catch (e) {
@@ -262,7 +297,7 @@ export default function App() {
     const prompt = `Translate these gesture tokens [${gesturesToProcess.join(', ')}] into a grammatically correct, polite sentence in ${languageRef.current}. Return ONLY the sentence text.`;
     
     try {
-      const response = await ai.models.generateContent({
+      const response = await getAi().models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
       });
@@ -353,17 +388,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-6 gap-6 max-w-[1200px] mx-auto">
-      <header className="soft-card flex justify-between items-center px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="brand-icon"></div>
-          <div className="font-bold tracking-tight text-xl text-text-main">EchoVision Web</div>
-        </div>
-        <div className="text-sm text-text-dim font-medium flex items-center gap-2">
-          <span className="status-dot"></span> Vision Engine Active
-        </div>
-      </header>
-      
+    <>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] gap-6">
         <aside className="soft-card flex flex-col p-5">
           <h3 className="text-xs uppercase text-text-dim font-bold mb-4 tracking-wider">Input Controls</h3>
@@ -484,6 +509,6 @@ export default function App() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

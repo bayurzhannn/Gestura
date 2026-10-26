@@ -1,0 +1,8 @@
+{
+  "name": "EchoVision Web",
+  "description": "A smart glasses app replica that recognizes hand gestures using MediaPipe and formulates sentences using Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

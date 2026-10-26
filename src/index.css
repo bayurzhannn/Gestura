@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-main: #FDFBF7;
+  --color-bg-panel: #FFFFFF;
+  --color-accent-primary: #E07A5F;
+  --color-accent-secondary: #F2CC8F;
+  --color-text-main: #3D405B;
+  --color-text-dim: #8187A2;
+  --color-border-soft: #E8E5DF;
+  --font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.soft-card {
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(61, 64, 91, 0.05);
+}
+
+.gesture-token {
+  background-color: var(--color-accent-secondary);
+  color: #3D405B;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  box-shadow: 0 2px 8px rgba(242, 204, 143, 0.4);
+}
+
+.ai-output {
+  background-color: rgba(224, 122, 95, 0.05);
+  border: 1px solid rgba(224, 122, 95, 0.2);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  font-size: 1.25rem;
+  color: var(--color-text-main);
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(224, 122, 95, 0.3);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #81C784; /* Friendly green */
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px rgba(129, 199, 132, 0.6);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-soft);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-dim);
+}

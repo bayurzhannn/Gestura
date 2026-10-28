@@ -6,7 +6,8 @@ export interface Point { x: number; y: number; z?: number }
 
 export const alphabet = [...'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ'];
 const images = 'a b v g d e e zh z i j k l m n o p r s t u f h ts ch sh shch tvjordyj-znak y myagkij-znak ee yu ya'.split(' ');
-export const referenceImage = (letter: string) => `/references/alphabet/${images[alphabet.indexOf(letter)]}.png`;
+export const referenceImage = (letter: string) =>
+  `${import.meta.env.BASE_URL}references/alphabet/${images[alphabet.indexOf(letter)]}.png`;
 
 
 export const motionLetters = new Set(['Д', 'Ё', 'Й', 'К', 'Щ', 'Ъ', 'Ь']);

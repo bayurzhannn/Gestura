@@ -4,7 +4,8 @@
 // pairwise landmark distances that double-check hard letters (А, И/Й, К, Д, Ш/Щ).
 // Everything runs in plain TypeScript, so TensorFlow.js is not needed.
 
-const MODEL_BASE = '/models';
+// BASE_URL is '/' locally and '/Gestura/' on GitHub Pages.
+const MODEL_BASE = `${import.meta.env?.BASE_URL ?? '/'}models`;
 
 type Tensors = Record<string, Float32Array>;
 

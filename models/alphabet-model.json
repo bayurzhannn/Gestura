@@ -1,0 +1,107 @@
+{
+  "format": "rsl-landmarks-mlp-v1",
+  "classes": [
+    "А",
+    "Б",
+    "В",
+    "Г",
+    "Д",
+    "Е",
+    "Ё",
+    "Ж",
+    "З",
+    "И",
+    "Й",
+    "К",
+    "Л",
+    "М",
+    "Н",
+    "О",
+    "П",
+    "Р",
+    "С",
+    "Т",
+    "У",
+    "Ф",
+    "Х",
+    "Ц",
+    "Ч",
+    "Ш/Щ",
+    "Ъ/Ь",
+    "Ы",
+    "Э",
+    "Ю",
+    "Я"
+  ],
+  "features": "x0..x20,y0..y20 normalized to 192px",
+  "tensors": [
+    {
+      "name": "mean",
+      "shape": [
+        42
+      ],
+      "offset": 0,
+      "length": 42
+    },
+    {
+      "name": "scale",
+      "shape": [
+        42
+      ],
+      "offset": 42,
+      "length": 42
+    },
+    {
+      "name": "kernel0",
+      "shape": [
+        42,
+        96
+      ],
+      "offset": 84,
+      "length": 4032
+    },
+    {
+      "name": "bias0",
+      "shape": [
+        96
+      ],
+      "offset": 4116,
+      "length": 96
+    },
+    {
+      "name": "kernel1",
+      "shape": [
+        96,
+        64
+      ],
+      "offset": 4212,
+      "length": 6144
+    },
+    {
+      "name": "bias1",
+      "shape": [
+        64
+      ],
+      "offset": 10356,
+      "length": 64
+    },
+    {
+      "name": "kernel2",
+      "shape": [
+        64,
+        31
+      ],
+      "offset": 10420,
+      "length": 1984
+    },
+    {
+      "name": "bias2",
+      "shape": [
+        31
+      ],
+      "offset": 12404,
+      "length": 31
+    }
+  ],
+  "heldOutAccuracy": 0.9006993006993007
+}

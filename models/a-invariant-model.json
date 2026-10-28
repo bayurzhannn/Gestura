@@ -1,0 +1,102 @@
+{
+  "format": "rsl-a-invariant-distances-mlp-v1",
+  "classes": [
+    "А",
+    "не А"
+  ],
+  "features": "210 pairwise distances of the 21 normalized 2D hand landmarks",
+  "pair_indices": "(0,1)..(0,20),(1,2)..(19,20)",
+  "threshold": 0.0578935635067408,
+  "tensors": [
+    {
+      "name": "mean",
+      "shape": [
+        210
+      ],
+      "offset": 0,
+      "length": 210
+    },
+    {
+      "name": "scale",
+      "shape": [
+        210
+      ],
+      "offset": 210,
+      "length": 210
+    },
+    {
+      "name": "kernel0",
+      "shape": [
+        210,
+        64
+      ],
+      "offset": 420,
+      "length": 13440
+    },
+    {
+      "name": "bias0",
+      "shape": [
+        64
+      ],
+      "offset": 13860,
+      "length": 64
+    },
+    {
+      "name": "kernel1",
+      "shape": [
+        64,
+        32
+      ],
+      "offset": 13924,
+      "length": 2048
+    },
+    {
+      "name": "bias1",
+      "shape": [
+        32
+      ],
+      "offset": 15972,
+      "length": 32
+    },
+    {
+      "name": "kernel2",
+      "shape": [
+        32,
+        1
+      ],
+      "offset": 16004,
+      "length": 32
+    },
+    {
+      "name": "bias2",
+      "shape": [
+        1
+      ],
+      "offset": 16036,
+      "length": 1
+    }
+  ],
+  "training": {
+    "source": "Blockbattle/RSL-Dataset text landmarks, except the space class",
+    "split": "Within each class, first 70% train, next 15% validation, last 15% test",
+    "sampled_train_A": 875,
+    "sampled_train_non_A": 6820,
+    "best_epoch": 80,
+    "threshold_rule": "Geometric mean of the lowest validation A score and highest validation non-A score",
+    "validation": {
+      "A_count": 187,
+      "non_A_count": 6138,
+      "A_recall": 1.0,
+      "non_A_false_positive_rate": 0.0,
+      "non_A_false_positive_count": 0
+    },
+    "test": {
+      "A_count": 188,
+      "non_A_count": 6162,
+      "A_recall": 1.0,
+      "non_A_false_positive_rate": 0.0,
+      "non_A_false_positive_count": 0
+    },
+    "limitation": "No independent person or live camera was included in the test"
+  }
+}
